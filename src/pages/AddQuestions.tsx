@@ -6,7 +6,7 @@ import {
   Clock, FileText, Star, AlertTriangle, List, X, Plus,
 } from 'lucide-react';
 import { getTestById, updateTest } from '../api/tests';
-import { bulkCreateQuestions, fetchBulkQuestions } from '../api/questions';
+import { bulkCreateQuestions, fetchBulkQuestions, updateQuestionById } from '../api/questions';
 import { useTestStore } from '../store/testStore';
 import { useToast } from '../components/ui/Toast';
 import { Button } from '../components/ui/Button';
@@ -86,7 +86,7 @@ const QuestionManagerModal = ({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, initialIndex]);
 
-  const saveCurrentToList = () => {
+  const saveCurrentToList = async () => {
     if (!form.question.trim()) { showToast('Question text is required', 'error'); return; }
     const filledOpts = OPTS.filter((o) => !deletedOptions.has(o) && form[o].trim());
     if (filledOpts.length < 2) { showToast('At least 2 options are required', 'error'); return; }
@@ -98,7 +98,23 @@ const QuestionManagerModal = ({
     const qWithTest = { ...form, test_id: testId };
     if (isEditing && currentIndex !== null) {
       updateQuestion(currentIndex, qWithTest);
-      showToast('Question updated!');
+      // If the question already exists in the API, update it there too
+      if (form.id) {
+        try {
+          await updateQuestionById(form.id, {
+            ...qWithTest,
+            option1: qWithTest.option1?.trim() || ' ',
+            option2: qWithTest.option2?.trim() || ' ',
+            option3: qWithTest.option3?.trim() || ' ',
+            option4: qWithTest.option4?.trim() || ' ',
+          });
+          showToast('Question updated!');
+        } catch {
+          showToast('Failed to update question', 'error');
+        }
+      } else {
+        showToast('Question updated!');
+      }
     } else {
       addQuestion(qWithTest);
       showToast('Question added!');
