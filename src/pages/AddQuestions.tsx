@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Trash2, Pencil, Clock, FileText, Star, AlertTriangle, List, X, Plus,
+  ChevronRight, ChevronLeft, Trash2, Pencil,
+  Clock, FileText, Star, AlertTriangle, List, X, Plus,
 } from 'lucide-react';
 import { getTestById, updateTest } from '../api/tests';
 import { bulkCreateQuestions, fetchBulkQuestions } from '../api/questions';
@@ -28,7 +29,8 @@ const BLANK_QUESTION: Question = {
 
 const OPTS = ['option1', 'option2', 'option3', 'option4'] as const;
 
-// ─── QuestionEditorModal ─────────────────────────────────────────────────────
+// ─── QuestionManagerModal ────────────────────────────────────────────────────
+// Modal layout: test details at top, question list (left) + form (right) below.
 
 interface ModalProps {
   isOpen: boolean;
@@ -37,10 +39,11 @@ interface ModalProps {
   testId?: string;
   test: Test | null;
   totalQuestions: number;
+  onEditTest: () => void;
 }
 
-const QuestionEditorModal = ({
-  isOpen, onClose, initialIndex = null, testId, test, totalQuestions,
+const QuestionManagerModal = ({
+  isOpen, onClose, initialIndex = null, testId, test, totalQuestions, onEditTest,
 }: ModalProps) => {
   const { questions, addQuestion, updateQuestion, removeQuestion } = useTestStore();
   const { showToast } = useToast();
@@ -88,7 +91,6 @@ const QuestionEditorModal = ({
     const filledOpts = OPTS.filter((o) => !deletedOptions.has(o) && form[o].trim());
     if (filledOpts.length < 2) { showToast('At least 2 options are required', 'error'); return; }
 
-    // Warn only — do not block when over limit
     if (!isEditing && questions.length >= totalQuestions) {
       showToast(`Warning: exceeding the ${totalQuestions}-question limit.`, 'error');
     }
@@ -106,23 +108,40 @@ const QuestionEditorModal = ({
 
   const deleteQuestion = (index: number) => {
     removeQuestion(index);
-    if (currentIndex === null) return;
     if (currentIndex === index) {
       doClearForm();
-    } else if (index < currentIndex) {
+    } else if (currentIndex !== null && index < currentIndex) {
       setCurrentIndex((prev) => (prev !== null ? prev - 1 : null));
     }
   };
+
+  const navigateQuestion = (dir: 'prev' | 'next') => {
+    if (questions.length === 0) return;
+    if (dir === 'prev') {
+      const idx = currentIndex !== null ? Math.max(0, currentIndex - 1) : questions.length - 1;
+      doLoadQuestion(idx, questions);
+    } else {
+      if (currentIndex !== null && currentIndex < questions.length - 1) {
+        doLoadQuestion(currentIndex + 1, questions);
+      } else {
+        doClearForm();
+      }
+    }
+  };
+
+  const displayIndex = isEditing && currentIndex !== null
+    ? currentIndex + 1
+    : questions.length + 1;
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
-      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-5xl h-[90vh] flex flex-col">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-2xl w-full max-w-5xl h-[92vh] flex flex-col">
 
-        {/* Header */}
+        {/* Modal header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border dark:border-gray-700 flex-shrink-0">
-          <h2 className="text-base font-semibold text-text-primary">Question Manager</h2>
+          <h2 className="text-base font-semibold text-text-primary">Test Questions</h2>
           <button
             onClick={onClose}
             className="p-1.5 text-text-secondary hover:text-text-primary hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg"
@@ -131,221 +150,296 @@ const QuestionEditorModal = ({
           </button>
         </div>
 
-        {/* Body */}
-        <div className="flex flex-1 overflow-hidden">
+        {/* Scrollable body */}
+        <div className="flex-1 overflow-y-auto">
 
-          {/* Left: question list */}
-          <div className="w-[220px] flex-shrink-0 border-r border-border dark:border-gray-700 flex flex-col">
-            <div className="p-3 border-b border-border dark:border-gray-700">
-              <button
-                onClick={doClearForm}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-medium text-primary bg-primary-light hover:bg-primary hover:text-white rounded-lg transition-colors"
-              >
-                <Plus className="w-4 h-4" />
-                New Question
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto py-1">
-              {questions.map((_, i) => (
-                <div
-                  key={i}
-                  className={`flex items-center gap-1 px-2 py-2 transition-colors ${
-                    isEditing && currentIndex === i
-                      ? 'bg-primary-light'
-                      : 'hover:bg-gray-50 dark:hover:bg-gray-800'
-                  }`}
-                >
-                  <button
-                    className="flex items-center gap-2 flex-1 min-w-0 text-left"
-                    onClick={() => doLoadQuestion(i, questions)}
-                  >
-                    <div className="w-5 h-5 rounded-full bg-success flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-[9px] font-bold">{i + 1}</span>
-                    </div>
-                    <span className="text-xs text-text-primary truncate">Question {i + 1}</span>
-                  </button>
-                  <button
-                    onClick={() => deleteQuestion(i)}
-                    className="p-1 text-text-secondary hover:text-danger rounded flex-shrink-0"
-                    title="Delete question"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
-              ))}
-              {questions.length === 0 && (
-                <p className="px-4 py-8 text-center text-xs text-text-secondary">No questions yet</p>
-              )}
-            </div>
-
-            <div className="px-4 py-3 border-t border-border dark:border-gray-700">
-              <p className="text-xs text-text-secondary text-center">
-                {questions.length} / {totalQuestions} questions
-              </p>
-            </div>
-          </div>
-
-          {/* Right: form */}
-          <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
-            <p className="text-sm font-semibold text-text-primary">
-              {isEditing && currentIndex !== null
-                ? `Editing Question ${currentIndex + 1}`
-                : 'New Question'}
-            </p>
-
-            {/* Question text */}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-text-primary">Question</label>
-              <textarea
-                value={form.question}
-                onChange={(e) => setForm((f) => ({ ...f, question: e.target.value }))}
-                placeholder="Type the question here..."
-                rows={4}
-                className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-              />
-            </div>
-
-            {/* Options */}
-            <div className="flex flex-col gap-3">
-              <label className="text-sm font-medium text-text-primary">Options</label>
-              {OPTS.map((opt, i) => {
-                const isDeleted = deletedOptions.has(opt);
-                return (
-                  <div
-                    key={opt}
-                    className={`flex items-center gap-2 transition-opacity ${isDeleted ? 'opacity-50' : ''}`}
-                    onClick={isDeleted ? () => unmarkDeleted(opt) : undefined}
-                    style={isDeleted ? { cursor: 'pointer' } : undefined}
-                    title={isDeleted ? 'Click to re-enable' : undefined}
-                  >
-                    <input
-                      type="radio"
-                      name="modal_correct_option"
-                      value={opt}
-                      checked={form.correct_option === opt}
-                      disabled={isDeleted}
-                      onChange={() => setForm((f) => ({ ...f, correct_option: opt }))}
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-4 h-4 accent-primary flex-shrink-0"
-                    />
-                    <input
-                      type="text"
-                      value={form[opt]}
-                      disabled={isDeleted}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val) unmarkDeleted(opt);
-                        setForm((f) => {
-                          let correct = f.correct_option;
-                          if (!val.trim() && f.correct_option === opt) {
-                            const first = OPTS.find((o) => o !== opt && !deletedOptions.has(o) && f[o].trim());
-                            if (first) correct = first;
-                          }
-                          return { ...f, [opt]: val, correct_option: correct };
-                        });
-                      }}
-                      onClick={(e) => { if (isDeleted) { e.stopPropagation(); unmarkDeleted(opt); } }}
-                      placeholder={`Option ${i + 1}`}
-                      className="flex-1 px-3 py-2 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0 disabled:bg-white dark:disabled:bg-gray-700 disabled:cursor-pointer"
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isDeleted) { unmarkDeleted(opt); return; }
-                        markDeleted(opt);
-                        setForm((f) => {
-                          let correct = f.correct_option;
-                          if (f.correct_option === opt) {
-                            const first = OPTS.find((o) => o !== opt && !deletedOptions.has(o) && f[o].trim());
-                            if (first) correct = first;
-                          }
-                          return { ...f, [opt]: '', correct_option: correct };
-                        });
-                      }}
-                      className={`p-1.5 rounded-lg flex-shrink-0 transition-colors ${
-                        isDeleted
-                          ? 'text-primary bg-primary-light hover:bg-primary hover:text-white'
-                          : 'text-text-secondary hover:text-danger hover:bg-red-50 dark:hover:bg-red-900/20'
-                      }`}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+          {/* ── Test details ──────────────────────────────────────────────── */}
+          {test && (
+            <div className="px-6 py-5 border-b border-border dark:border-gray-700">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-2 flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="dark">
+                      {test.type === 'chapterwise' ? 'Chapter Wise'
+                        : test.type === 'pyq' ? 'PYQ'
+                        : test.type === 'mock' ? 'Mock Test'
+                        : test.type || 'Chapter Wise'}
+                    </Badge>
+                    <Badge variant={test.difficulty as 'easy' | 'medium' | 'hard'}>
+                      {test.difficulty
+                        ? test.difficulty.charAt(0).toUpperCase() + test.difficulty.slice(1)
+                        : 'Easy'}
+                    </Badge>
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Explanation */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium text-text-primary">Solution (optional)</label>
+                  <h3 className="text-base font-semibold text-text-primary">{test.name}</h3>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    {test.subject && (
+                      <span className="inline-block bg-blue-50 text-blue-600 text-xs px-2.5 py-1 rounded-full font-medium">
+                        {test.subject}
+                      </span>
+                    )}
+                    {Array.isArray(test.topics) && test.topics.map((t, i) => (
+                      <span key={i} className="inline-block bg-primary-light text-primary text-xs px-2.5 py-1 rounded-full">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-4 text-xs text-text-secondary">
+                    <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{test.total_time} min</span>
+                    <span className="flex items-center gap-1"><FileText className="w-3.5 h-3.5" />{test.total_questions} questions</span>
+                    <span className="flex items-center gap-1"><Star className="w-3.5 h-3.5" />{test.total_marks} marks</span>
+                  </div>
+                </div>
                 <button
-                  type="button"
-                  onClick={() => setForm((f) => ({ ...f, explanation: '' }))}
-                  className="p-1 text-text-secondary hover:text-danger rounded"
-                  title="Clear solution"
+                  onClick={onEditTest}
+                  className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded-lg flex-shrink-0"
+                  title="Edit test details"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <Pencil className="w-4 h-4" />
                 </button>
               </div>
-              <textarea
-                value={form.explanation || ''}
-                onChange={(e) => setForm((f) => ({ ...f, explanation: e.target.value }))}
-                placeholder="Explain the correct answer… (optional)"
-                rows={2}
-                className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-              />
             </div>
+          )}
 
-            {/* Question settings */}
-            <div className="border-t border-border pt-4">
-              <h3 className="text-sm font-medium text-text-primary mb-3">Question Settings</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Select
-                  label="Difficulty"
-                  options={[
-                    { value: 'easy', label: 'Easy' },
-                    { value: 'medium', label: 'Medium' },
-                    { value: 'hard', label: 'Hard' },
-                  ]}
-                  value={form.difficulty || 'easy'}
-                  onChange={(v) => setForm((f) => ({ ...f, difficulty: v as 'easy' | 'medium' | 'hard' }))}
-                />
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-text-primary">Topic ID</label>
-                  <input
-                    type="text"
-                    value={form.topic || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
-                    placeholder="Topic UUID"
-                    className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-sm font-medium text-text-primary">Sub-topic ID</label>
-                  <input
-                    type="text"
-                    value={form.sub_topic || ''}
-                    onChange={(e) => setForm((f) => ({ ...f, sub_topic: e.target.value }))}
-                    placeholder="Sub-topic UUID"
-                    className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                  />
-                </div>
+          {/* ── Question manager ──────────────────────────────────────────── */}
+          <div className="flex" style={{ minHeight: '0' }}>
+
+            {/* Left: question list */}
+            <div className="w-[200px] flex-shrink-0 border-r border-border dark:border-gray-700 flex flex-col sticky top-0 self-start" style={{ maxHeight: 'calc(92vh - 185px)', overflowY: 'auto' }}>
+              <div className="p-3 border-b border-border dark:border-gray-700 flex items-center justify-between">
+                <span className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
+                  {questions.length}/{totalQuestions}
+                </span>
+                <button
+                  onClick={doClearForm}
+                  className="p-1 text-primary bg-primary-light hover:bg-primary hover:text-white rounded-lg transition-colors"
+                  title="New question"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="py-1">
+                {questions.map((_, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-1 px-2 py-2 transition-colors ${
+                      isEditing && currentIndex === i
+                        ? 'bg-primary-light'
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                    }`}
+                  >
+                    <button
+                      className="flex items-center gap-2 flex-1 min-w-0 text-left"
+                      onClick={() => doLoadQuestion(i, questions)}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-success flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-[9px] font-bold">{i + 1}</span>
+                      </div>
+                      <span className="text-xs text-text-primary truncate">Q{i + 1}</span>
+                    </button>
+                    <button
+                      onClick={() => deleteQuestion(i)}
+                      className="p-1 text-text-secondary hover:text-danger rounded flex-shrink-0"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+                {questions.length === 0 && (
+                  <p className="px-3 py-6 text-center text-xs text-text-secondary">No questions yet</p>
+                )}
               </div>
             </div>
 
-            {/* Save action */}
-            <div className="flex justify-end pt-2 border-t border-border">
-              <Button type="button" onClick={saveCurrentToList}>
-                {isEditing ? 'Update Question' : 'Add Question'}
-              </Button>
+            {/* Right: question form */}
+            <div className="flex-1 p-5 flex flex-col gap-4">
+              {/* Form header */}
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sm font-semibold text-text-primary">
+                  Question <span className="text-primary">{displayIndex}</span>/{totalQuestions}
+                  {questions.length >= totalQuestions && !isEditing && (
+                    <span className="ml-2 text-xs font-normal text-warning">over limit</span>
+                  )}
+                </span>
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={doClearForm}
+                    className="text-xs text-text-secondary hover:text-primary hover:underline"
+                  >
+                    + New question
+                  </button>
+                )}
+              </div>
+
+              {/* Question textarea */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-text-primary">Question</label>
+                <textarea
+                  value={form.question}
+                  onChange={(e) => setForm((f) => ({ ...f, question: e.target.value }))}
+                  placeholder="Type the question here..."
+                  rows={4}
+                  className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                />
+              </div>
+
+              {/* Options */}
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-medium text-text-primary">Options</label>
+                {OPTS.map((opt, i) => {
+                  const isDeleted = deletedOptions.has(opt);
+                  return (
+                    <div
+                      key={opt}
+                      className={`flex items-center gap-2 transition-opacity ${isDeleted ? 'opacity-50' : ''}`}
+                      onClick={isDeleted ? () => unmarkDeleted(opt) : undefined}
+                      style={isDeleted ? { cursor: 'pointer' } : undefined}
+                      title={isDeleted ? 'Click to re-enable' : undefined}
+                    >
+                      <input
+                        type="radio"
+                        name="modal_correct_option"
+                        value={opt}
+                        checked={form.correct_option === opt}
+                        disabled={isDeleted}
+                        onChange={() => setForm((f) => ({ ...f, correct_option: opt }))}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-4 h-4 accent-primary flex-shrink-0"
+                      />
+                      <input
+                        type="text"
+                        value={form[opt]}
+                        disabled={isDeleted}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val) unmarkDeleted(opt);
+                          setForm((f) => {
+                            let correct = f.correct_option;
+                            if (!val.trim() && f.correct_option === opt) {
+                              const first = OPTS.find((o) => o !== opt && !deletedOptions.has(o) && f[o].trim());
+                              if (first) correct = first;
+                            }
+                            return { ...f, [opt]: val, correct_option: correct };
+                          });
+                        }}
+                        onClick={(e) => { if (isDeleted) { e.stopPropagation(); unmarkDeleted(opt); } }}
+                        placeholder={`Option ${i + 1}`}
+                        className="flex-1 px-3 py-2 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary min-w-0 disabled:bg-white dark:disabled:bg-gray-700 disabled:cursor-pointer"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isDeleted) { unmarkDeleted(opt); return; }
+                          markDeleted(opt);
+                          setForm((f) => {
+                            let correct = f.correct_option;
+                            if (f.correct_option === opt) {
+                              const first = OPTS.find((o) => o !== opt && !deletedOptions.has(o) && f[o].trim());
+                              if (first) correct = first;
+                            }
+                            return { ...f, [opt]: '', correct_option: correct };
+                          });
+                        }}
+                        className={`p-1.5 rounded-lg flex-shrink-0 transition-colors ${
+                          isDeleted
+                            ? 'text-primary bg-primary-light hover:bg-primary hover:text-white'
+                            : 'text-text-secondary hover:text-danger hover:bg-red-50 dark:hover:bg-red-900/20'
+                        }`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Explanation */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium text-text-primary">Solution (optional)</label>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, explanation: '' }))}
+                    className="p-1 text-text-secondary hover:text-danger rounded"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+                <textarea
+                  value={form.explanation || ''}
+                  onChange={(e) => setForm((f) => ({ ...f, explanation: e.target.value }))}
+                  placeholder="Explain the correct answer… (optional)"
+                  rows={2}
+                  className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
+                />
+              </div>
+
+              {/* Question settings */}
+              <div className="border-t border-border pt-4">
+                <h3 className="text-sm font-medium text-text-primary mb-3">Question Settings</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Select
+                    label="Difficulty"
+                    options={[
+                      { value: 'easy', label: 'Easy' },
+                      { value: 'medium', label: 'Medium' },
+                      { value: 'hard', label: 'Hard' },
+                    ]}
+                    value={form.difficulty || 'easy'}
+                    onChange={(v) => setForm((f) => ({ ...f, difficulty: v as 'easy' | 'medium' | 'hard' }))}
+                  />
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-text-primary">Topic ID</label>
+                    <input
+                      type="text"
+                      value={form.topic || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, topic: e.target.value }))}
+                      placeholder="Topic UUID"
+                      className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-sm font-medium text-text-primary">Sub-topic ID</label>
+                    <input
+                      type="text"
+                      value={form.sub_topic || ''}
+                      onChange={(e) => setForm((f) => ({ ...f, sub_topic: e.target.value }))}
+                      placeholder="Sub-topic UUID"
+                      className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Nav + save */}
+              <div className="flex items-center justify-between pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => navigateQuestion('prev')}
+                  disabled={questions.length === 0}
+                  className="p-2 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40"
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <Button type="button" variant="secondary" onClick={saveCurrentToList}>
+                  {isEditing ? 'Update Question' : 'Add Question'}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => navigateQuestion('next')}
+                  className="p-2 rounded-lg border border-border text-text-secondary hover:text-text-primary hover:bg-gray-50 dark:hover:bg-gray-700"
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Modal footer */}
         <div className="px-6 py-4 border-t border-border dark:border-gray-700 flex-shrink-0 flex justify-end">
           <Button variant="secondary" onClick={onClose}>Done</Button>
         </div>
@@ -455,9 +549,7 @@ export const AddQuestions = () => {
       <div className="px-4 py-4 border-b border-border flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-text-primary">Questions</h3>
-          <p className="text-xs text-text-secondary mt-0.5">
-            {questions.length} / {totalQuestions}
-          </p>
+          <p className="text-xs text-text-secondary mt-0.5">{questions.length} / {totalQuestions}</p>
         </div>
         <button
           onClick={() => openEditor()}
@@ -467,7 +559,6 @@ export const AddQuestions = () => {
           <Plus className="w-4 h-4" />
         </button>
       </div>
-
       <div className="flex-1 overflow-y-auto py-1">
         {loadingExisting && (
           <div className="flex items-center gap-2 px-4 py-3">
@@ -488,6 +579,7 @@ export const AddQuestions = () => {
                 <span className="text-white text-[9px] font-bold">{i + 1}</span>
               </div>
               <span className="text-xs text-text-primary truncate">Question {i + 1}</span>
+              <ChevronRight className="w-3 h-3 text-text-secondary ml-auto flex-shrink-0" />
             </button>
             <button
               onClick={() => removeQuestion(i)}
@@ -501,10 +593,7 @@ export const AddQuestions = () => {
         {questions.length === 0 && !loadingExisting && (
           <div className="px-4 py-6 text-center">
             <p className="text-xs text-text-secondary mb-2">No questions yet</p>
-            <button
-              onClick={() => openEditor()}
-              className="text-xs text-primary hover:underline"
-            >
+            <button onClick={() => openEditor()} className="text-xs text-primary hover:underline">
               Add first question
             </button>
           </div>
@@ -545,7 +634,7 @@ export const AddQuestions = () => {
       {/* Right panel */}
       <div className="flex-1 flex flex-col gap-4 overflow-y-auto">
 
-        {/* Test summary */}
+        {/* Test summary (read-only, outside modal) */}
         {test && (
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-border p-4 md:p-5">
             <div className="flex items-start justify-between gap-3">
@@ -557,15 +646,13 @@ export const AddQuestions = () => {
                       : test.type === 'mock' ? 'Mock Test'
                       : test.type || 'Chapter Wise'}
                   </Badge>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-base font-semibold text-text-primary truncate">{test.name}</h2>
                   <Badge variant={test.difficulty as 'easy' | 'medium' | 'hard'}>
                     {test.difficulty
                       ? test.difficulty.charAt(0).toUpperCase() + test.difficulty.slice(1)
                       : 'Easy'}
                   </Badge>
                 </div>
+                <h2 className="text-base font-semibold text-text-primary truncate">{test.name}</h2>
                 <div className="flex items-center gap-3 flex-wrap">
                   {test.subject && (
                     <span className="inline-block bg-blue-50 text-blue-600 text-xs px-2.5 py-1 rounded-full font-medium">
@@ -579,7 +666,7 @@ export const AddQuestions = () => {
                   ))}
                 </div>
               </div>
-              <div className="flex flex-col items-end gap-2">
+              <div className="flex flex-col items-end gap-2 flex-shrink-0">
                 <button
                   onClick={() => navigate(`/create-test/edit/${testId}`)}
                   className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded-lg"
@@ -603,9 +690,7 @@ export const AddQuestions = () => {
               {questions.length} / {totalQuestions} Questions
             </p>
             <p className="text-sm text-text-secondary mt-1">
-              {questions.length === 0
-                ? 'No questions added yet'
-                : `${questions.length} question${questions.length !== 1 ? 's' : ''} ready`}
+              {questions.length === 0 ? 'No questions added yet' : `${questions.length} question${questions.length !== 1 ? 's' : ''} ready`}
             </p>
           </div>
           <Button onClick={() => openEditor()}>
@@ -616,10 +701,7 @@ export const AddQuestions = () => {
 
         {/* Bottom actions */}
         <div className="flex justify-between pb-4 flex-wrap gap-3">
-          <Button
-            variant="danger"
-            onClick={() => { clearAll(); navigate('/dashboard'); }}
-          >
+          <Button variant="danger" onClick={() => { clearAll(); navigate('/dashboard'); }}>
             <AlertTriangle className="w-4 h-4" />
             <span className="hidden sm:inline">Exit Test Creation</span>
             <span className="sm:hidden">Exit</span>
@@ -634,14 +716,15 @@ export const AddQuestions = () => {
         </div>
       </div>
 
-      {/* Question editor modal */}
-      <QuestionEditorModal
+      {/* Question manager modal (test details + question form) */}
+      <QuestionManagerModal
         isOpen={editorOpen}
         onClose={() => setEditorOpen(false)}
         initialIndex={editorInitialIndex}
         testId={testId}
         test={test}
         totalQuestions={totalQuestions}
+        onEditTest={() => { setEditorOpen(false); navigate(`/create-test/edit/${testId}`); }}
       />
     </div>
   );
