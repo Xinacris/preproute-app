@@ -101,12 +101,19 @@ const QuestionManagerModal = ({
       // If the question already exists in the API, update it there too
       if (form.id) {
         try {
+          // Send only editable fields — omit id/test_id/subject (causes 400)
           await updateQuestionById(form.id, {
-            ...qWithTest,
-            option1: qWithTest.option1?.trim() || ' ',
-            option2: qWithTest.option2?.trim() || ' ',
-            option3: qWithTest.option3?.trim() || ' ',
-            option4: qWithTest.option4?.trim() || ' ',
+            type: form.type,
+            question: form.question,
+            option1: form.option1?.trim() || ' ',
+            option2: form.option2?.trim() || ' ',
+            option3: form.option3?.trim() || ' ',
+            option4: form.option4?.trim() || ' ',
+            correct_option: form.correct_option,
+            explanation: form.explanation ?? '',
+            difficulty: form.difficulty,
+            ...(form.topic    ? { topic: form.topic }       : {}),
+            ...(form.sub_topic ? { sub_topic: form.sub_topic } : {}),
           });
           showToast('Question updated!');
         } catch {
