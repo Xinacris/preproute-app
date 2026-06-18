@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Papa from 'papaparse';
-import ReactQuill from 'react-quill';
+import ReactQuill from 'react-quill-new';
 import {
   ChevronRight, ChevronLeft, Trash2, Pencil,
   Clock, FileText, Star, AlertTriangle, List, X, Plus, Download,
