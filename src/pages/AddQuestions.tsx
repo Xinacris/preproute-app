@@ -125,6 +125,7 @@ const QuestionManagerModal = ({
             difficulty: form.difficulty,
             ...(form.topic    ? { topic: form.topic }       : {}),
             ...(form.sub_topic ? { sub_topic: form.sub_topic } : {}),
+            ...(form.media_url?.trim() ? { media_url: form.media_url.trim() } : {}),
           });
           showToast('Question updated!');
         } catch {
@@ -413,6 +414,21 @@ const QuestionManagerModal = ({
                 />
               </div>
 
+              {/* Media URL */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-text-primary">Media URL</label>
+                <input
+                  type="text"
+                  value={form.media_url || ''}
+                  onChange={(e) => setForm((f) => ({ ...f, media_url: e.target.value }))}
+                  placeholder="https://example.com/image.png"
+                  className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                />
+                {form.media_url?.trim() && (
+                  <img src={form.media_url} alt="" className="max-h-40 rounded-lg mt-2" />
+                )}
+              </div>
+
               {/* Question settings */}
               <div className="border-t border-border pt-4">
                 <h3 className="text-sm font-medium text-text-primary mb-3">Question Settings</h3>
@@ -590,16 +606,20 @@ export const AddQuestions = () => {
       let allIds: string[] = existingOnes.map((q) => q.id as string);
 
       if (newOnes.length > 0) {
-        const payload = newOnes.map((q) => ({
-          ...q,
-          test_id: testId,
-          subject: q.subject || test?.subject,
-          option1: q.option1?.trim() || ' ',
-          option2: q.option2?.trim() || ' ',
-          option3: q.option3?.trim() || ' ',
-          option4: q.option4?.trim() || ' ',
-          explanation: q.explanation ?? '',
-        }));
+        const payload = newOnes.map((q) => {
+          const { media_url, ...rest } = q;
+          return {
+            ...rest,
+            test_id: testId,
+            subject: q.subject || test?.subject,
+            option1: q.option1?.trim() || ' ',
+            option2: q.option2?.trim() || ' ',
+            option3: q.option3?.trim() || ' ',
+            option4: q.option4?.trim() || ' ',
+            explanation: q.explanation ?? '',
+            ...(media_url?.trim() ? { media_url: media_url.trim() } : {}),
+          };
+        });
         const res = await bulkCreateQuestions(payload);
         const newIds: string[] = (res.data?.data || res.data || []).map(
           (q: { id: string }) => q.id
