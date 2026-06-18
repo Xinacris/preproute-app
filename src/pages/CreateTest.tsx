@@ -8,6 +8,7 @@ import { getSubjects, getTopicsBySubject, getSubTopicsByTopics } from '../api/su
 import { createTest, updateTest, getTestById } from '../api/tests';
 import { useTestStore } from '../store/testStore';
 import { useToast } from '../components/ui/Toast';
+import { getErrorMessage } from '../utils/getErrorMessage';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -189,7 +190,7 @@ export const CreateTest = ({ editId, onClose, onSaved }: CreateTestProps = {}) =
       showToast('Test created successfully!');
       navigate(`/add-questions/${test.id}`);
     },
-    onError: () => showToast('Failed to create test', 'error'),
+    onError: (err) => showToast(getErrorMessage(err, 'Failed to create test'), 'error'),
   });
 
   const updateMutation = useMutation({
@@ -206,7 +207,7 @@ export const CreateTest = ({ editId, onClose, onSaved }: CreateTestProps = {}) =
         navigate(`/add-questions/${id}`);
       }
     },
-    onError: () => showToast('Failed to update test', 'error'),
+    onError: (err) => showToast(getErrorMessage(err, 'Failed to update test'), 'error'),
   });
 
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -225,7 +226,7 @@ export const CreateTest = ({ editId, onClose, onSaved }: CreateTestProps = {}) =
       showToast('Test saved as draft');
       onSaved?.();
     },
-    onError: () => showToast('Failed to save draft', 'error'),
+    onError: (err) => showToast(getErrorMessage(err, 'Failed to save draft'), 'error'),
   });
 
   const onSaveDraft = (data: TestFormData) => saveDraftMutation.mutate(data);
