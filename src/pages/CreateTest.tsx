@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -209,6 +209,27 @@ export const CreateTest = ({ editId, onClose, onSaved }: CreateTestProps = {}) =
     onError: () => showToast('Failed to update test', 'error'),
   });
 
+  const [draftId, setDraftId] = useState<string | null>(null);
+
+  const saveDraftMutation = useMutation({
+    mutationFn: (data: TestFormData) => {
+      const targetId = id || draftId;
+      return targetId
+        ? updateTest(targetId, buildPayload(data, { status: 'draft' }))
+        : createTest(buildPayload(data, { status: 'draft' }));
+    },
+    onSuccess: (res) => {
+      const test = res.data?.data || res.data;
+      setCurrentTest(test);
+      if (!id) setDraftId(test.id);
+      showToast('Test saved as draft');
+      onSaved?.();
+    },
+    onError: () => showToast('Failed to save draft', 'error'),
+  });
+
+  const onSaveDraft = (data: TestFormData) => saveDraftMutation.mutate(data);
+
   const onSubmit  = (data: TestFormData) => isEdit ? updateMutation.mutate(data) : createMutation.mutate(data);
   const isPending = createMutation.isPending || updateMutation.isPending;
   const totalMarks = (totalQuestions || 0) * (correctMarks || 0);
@@ -327,6 +348,7 @@ export const CreateTest = ({ editId, onClose, onSaved }: CreateTestProps = {}) =
               {...register('total_questions', { valueAsNumber: true })}
               className={`w-full px-3 py-2.5 rounded-lg border text-sm border-border bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-500 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary ${errors.total_questions ? 'border-danger' : ''}`}
             />
+            {errors.total_questions && <p className="text-xs text-danger">{errors.total_questions.message}</p>}
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-text-secondary">Total Marks</label>
@@ -342,6 +364,9 @@ export const CreateTest = ({ editId, onClose, onSaved }: CreateTestProps = {}) =
         <Button type="button" variant="ghost"
           onClick={() => isModal ? onClose?.() : navigate('/dashboard')}
         >Cancel</Button>
+        <Button type="button" variant="secondary" loading={saveDraftMutation.isPending}
+          onClick={handleSubmit(onSaveDraft)}
+        >Save as Draft</Button>
         <Button type="submit" loading={isPending}>
           {isEdit ? 'Save' : 'Next'}
         </Button>
