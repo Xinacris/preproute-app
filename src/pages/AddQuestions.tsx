@@ -63,6 +63,7 @@ const QuestionManagerModal = ({
   const [form, setForm] = useState<Question>({ ...BLANK_QUESTION });
   const [isEditing, setIsEditing] = useState(false);
   const [deletedOptions, setDeletedOptions] = useState<Set<string>>(new Set());
+  const [fieldErrors, setFieldErrors] = useState<{ question?: string; options?: string }>({});
 
   const markDeleted = (opt: string) =>
     setDeletedOptions((prev) => new Set([...prev, opt]));
@@ -78,6 +79,7 @@ const QuestionManagerModal = ({
     const deleted = new Set<string>();
     OPTS.forEach((o) => { if (!q[o]?.trim()) deleted.add(o); });
     setDeletedOptions(deleted);
+    setFieldErrors({});
   };
 
   const doClearForm = () => {
@@ -85,6 +87,7 @@ const QuestionManagerModal = ({
     setCurrentIndex(null);
     setIsEditing(false);
     setDeletedOptions(new Set());
+    setFieldErrors({});
   };
 
   useEffect(() => {
@@ -98,9 +101,15 @@ const QuestionManagerModal = ({
   }, [isOpen, initialIndex]);
 
   const saveCurrentToList = async () => {
-    if (!form.question.trim()) { showToast('Question text is required', 'error'); return; }
+    const nextErrors: { question?: string; options?: string } = {};
+    const questionIsEmpty = !form.question.trim() || form.question.trim() === '<p><br></p>';
+    if (questionIsEmpty) nextErrors.question = 'Question text is required';
+
     const filledOpts = OPTS.filter((o) => !deletedOptions.has(o) && form[o].trim());
-    if (filledOpts.length < 2) { showToast('At least 2 options are required', 'error'); return; }
+    if (filledOpts.length < 2) nextErrors.options = 'At least 2 options are required';
+
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length > 0) return;
 
     if (!isEditing && questions.length >= totalQuestions) {
       showToast(`Warning: exceeding the ${totalQuestions}-question limit.`, 'error');
@@ -282,7 +291,7 @@ const QuestionManagerModal = ({
                   </div>
                 ))}
                 {questions.length === 0 && (
-                  <p className="px-3 py-6 text-center text-xs text-text-secondary">No questions yet</p>
+                  <p className="px-3 py-6 text-center text-xs text-text-secondary">No questions added yet</p>
                 )}
               </div>
             </div>
@@ -320,6 +329,7 @@ const QuestionManagerModal = ({
                     modules={quillModules}
                   />
                 </div>
+                {fieldErrors.question && <p className="text-xs text-danger mt-1">{fieldErrors.question}</p>}
               </div>
 
               {/* Options */}
@@ -392,6 +402,7 @@ const QuestionManagerModal = ({
                   );
                 })}
               </div>
+              {fieldErrors.options && <p className="text-xs text-danger mt-1">{fieldErrors.options}</p>}
 
               {/* Explanation */}
               <div className="flex flex-col gap-1.5">
