@@ -5,7 +5,7 @@ import Papa from 'papaparse';
 import ReactQuill from 'react-quill-new';
 import {
   ChevronRight, ChevronLeft, Trash2, Pencil,
-  Clock, FileText, Star, AlertTriangle, List, X, Plus, Download, Upload,
+  Clock, FileText, Star, AlertTriangle, List, X, Plus, Upload,
 } from 'lucide-react';
 import { getTestById, updateTest } from '../api/tests';
 import { bulkCreateQuestions, fetchBulkQuestions, updateQuestionById } from '../api/questions';
@@ -840,7 +840,7 @@ export const AddQuestions = () => {
               {questions.length === 0 ? 'Add Questions' : 'Manage Questions'}
             </Button>
             <Button variant="secondary" loading={csvImporting} onClick={() => csvInputRef.current?.click()}>
-              <Download className="w-4 h-4" />
+              <Upload className="w-4 h-4" />
               CSV
             </Button>
           </div>
