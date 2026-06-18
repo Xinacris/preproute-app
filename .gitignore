@@ -22,6 +22,11 @@ lerna-debug.log*
 # TypeScript build info
 *.tsbuildinfo
 
+# Claude / AI tooling artifacts
+docs/superpowers
+.playwright-mcp
+*.vsix
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
