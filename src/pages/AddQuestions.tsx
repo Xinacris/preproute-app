@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import Papa from 'papaparse';
 import {
   ChevronRight, ChevronLeft, Trash2, Pencil,
-  Clock, FileText, Star, AlertTriangle, List, X, Plus,
+  Clock, FileText, Star, AlertTriangle, List, X, Plus, Download,
 } from 'lucide-react';
 import { getTestById, updateTest } from '../api/tests';
 import { bulkCreateQuestions, fetchBulkQuestions, updateQuestionById } from '../api/questions';
@@ -485,6 +486,52 @@ export const AddQuestions = () => {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorInitialIndex, setEditorInitialIndex] = useState<number | null>(null);
 
+  const [csvImporting, setCsvImporting] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement>(null);
+
+  const handleCsvFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    setCsvImporting(true);
+    Papa.parse<Record<string, string>>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => {
+        setCsvImporting(false);
+        const rows = result.data;
+        const required = ['question', 'option1', 'option2', 'option3', 'option4', 'correct_option'];
+        const valid = rows.filter((row) => required.every((key) => row[key]?.trim()));
+
+        if (valid.length === 0) {
+          showToast('Invalid CSV format — check required columns', 'error');
+          return;
+        }
+
+        valid.forEach((row) => {
+          addQuestion({
+            type: 'mcq',
+            question: row.question.trim(),
+            option1: row.option1.trim(),
+            option2: row.option2.trim(),
+            option3: row.option3.trim(),
+            option4: row.option4.trim(),
+            correct_option: row.correct_option.trim() as Question['correct_option'],
+            explanation: row.explanation?.trim() || '',
+            difficulty: (row.difficulty?.trim() as Question['difficulty']) || 'easy',
+          });
+        });
+
+        showToast(`${valid.length} questions imported from CSV`);
+      },
+      error: () => {
+        setCsvImporting(false);
+        showToast('Failed to parse CSV file', 'error');
+      },
+    });
+  };
+
   const { data: testData } = useQuery({
     queryKey: ['test', testId],
     queryFn: () => getTestById(testId!).then((r) => r.data),
@@ -615,7 +662,7 @@ export const AddQuestions = () => {
         ))}
         {questions.length === 0 && !loadingExisting && (
           <div className="px-4 py-6 text-center">
-            <p className="text-xs text-text-secondary mb-2">No questions yet</p>
+            <p className="text-xs text-text-secondary mb-2">No questions added yet</p>
             <button onClick={() => openEditor()} className="text-xs text-primary hover:underline">
               Add first question
             </button>
@@ -716,10 +763,23 @@ export const AddQuestions = () => {
               {questions.length === 0 ? 'No questions added yet' : `${questions.length} question${questions.length !== 1 ? 's' : ''} ready`}
             </p>
           </div>
-          <Button onClick={() => openEditor()}>
-            <Plus className="w-4 h-4" />
-            {questions.length === 0 ? 'Add Questions' : 'Manage Questions'}
-          </Button>
+          <div className="flex gap-3">
+            <Button onClick={() => openEditor()}>
+              <Plus className="w-4 h-4" />
+              {questions.length === 0 ? 'Add Questions' : 'Manage Questions'}
+            </Button>
+            <Button variant="secondary" loading={csvImporting} onClick={() => csvInputRef.current?.click()}>
+              <Download className="w-4 h-4" />
+              CSV
+            </Button>
+          </div>
+          <input
+            ref={csvInputRef}
+            type="file"
+            accept=".csv"
+            onChange={handleCsvFile}
+            className="hidden"
+          />
         </div>
 
         {/* Bottom actions */}
