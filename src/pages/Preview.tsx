@@ -221,6 +221,9 @@ export const Preview = () => {
                       <div key={qId} className="px-5 py-4">
                         <button onClick={() => setExpandedQuestion(isOpen ? null : qId)} className="w-full flex items-start gap-3 text-left">
                           <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary-light text-primary text-xs font-semibold flex items-center justify-center mt-0.5">{idx + 1}</span>
+                          {q.media_url?.trim() && (
+                            <img src={q.media_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                          )}
                           <span className="flex-1 text-sm text-text-primary font-medium leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.question) }} />
                           <div className="flex items-center gap-2 flex-shrink-0">
                             {q.difficulty && (
