@@ -8,6 +8,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { EditTestModal } from '../components/ui/EditTestModal';
+import { ViewTestModal } from '../components/ui/ViewTestModal';
 import { useToast } from '../components/ui/Toast';
 
 const TYPE_LABELS: Record<string, { label: string; className: string }> = {
@@ -45,6 +46,7 @@ export const Dashboard = () => {
   const { showToast } = useToast();
   const [deleteId, setDeleteId]   = useState<string | null>(null);
   const [editId, setEditId]       = useState<string | null>(null);
+  const [viewId, setViewId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -119,7 +121,7 @@ export const Dashboard = () => {
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button onClick={() => setEditId(test.id)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded-lg transition-colors" title="Edit"><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => navigate(`/preview/${test.id}`)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded-lg transition-colors" title="View"><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => test.status === 'live' ? setViewId(test.id) : navigate(`/preview/${test.id}`)} className="p-1.5 text-text-secondary hover:text-primary hover:bg-primary-light rounded-lg transition-colors" title="View"><Eye className="w-4 h-4" /></button>
                       <button onClick={() => setDeleteId(test.id)} className="p-1.5 text-text-secondary hover:text-danger hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
@@ -160,7 +162,7 @@ export const Dashboard = () => {
                       <div className="fixed inset-0 z-10" onClick={() => setOpenMenuId(null)} />
                       <div className="absolute right-0 top-8 z-20 bg-white dark:bg-gray-800 border border-border rounded-xl shadow-lg overflow-hidden min-w-[140px]">
                         <button onClick={() => { setEditId(test.id); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-text-primary hover:bg-gray-50 dark:hover:bg-gray-700"><Pencil className="w-4 h-4" /> Edit</button>
-                        <button onClick={() => { navigate(`/preview/${test.id}`); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-text-primary hover:bg-gray-50 dark:hover:bg-gray-700"><Eye className="w-4 h-4" /> View</button>
+                        <button onClick={() => { test.status === 'live' ? setViewId(test.id) : navigate(`/preview/${test.id}`); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-text-primary hover:bg-gray-50 dark:hover:bg-gray-700"><Eye className="w-4 h-4" /> View</button>
                         <button onClick={() => { setDeleteId(test.id); setOpenMenuId(null); }} className="flex items-center gap-2 w-full px-4 py-2.5 text-sm text-danger hover:bg-red-50 dark:hover:bg-red-900/20"><Trash2 className="w-4 h-4" /> Delete</button>
                       </div>
                     </>
@@ -189,6 +191,9 @@ export const Dashboard = () => {
       {/* Edit modal */}
       {editId && <EditTestModal testId={editId} onClose={() => setEditId(null)} />}
 
+      {/* View modal (live tests) */}
+      {viewId && <ViewTestModal testId={viewId} onClose={() => setViewId(null)} />}
+
       {/* Delete confirm modal */}
       <Modal open={!!deleteId} onClose={() => setDeleteId(null)} title="Delete Test">
         <div className="flex flex-col gap-4">
@@ -208,7 +213,7 @@ const EmptyState = ({ onNavigate }: { onNavigate: () => void }) => (
     <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
       <Plus className="w-6 h-6 text-gray-400" />
     </div>
-    <p className="font-medium text-sm">No tests yet. Create your first test!</p>
+    <p className="font-medium text-sm">No tests found. Create your first test!</p>
     <Button size="sm" onClick={onNavigate}>Create New Test</Button>
   </div>
 );
