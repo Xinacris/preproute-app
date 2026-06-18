@@ -56,9 +56,22 @@ const diffBadge = (d?: string) => {
   </Badge>;
 };
 
-const formatDate = (s?: string) => s
-  ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
-  : '—';
+const formatDate = (s?: string) => {
+  if (!s) return '—';
+  const date = new Date(s);
+  const now = new Date();
+  const isToday = date.getFullYear() === now.getFullYear()
+    && date.getMonth() === now.getMonth()
+    && date.getDate() === now.getDate();
+  if (isToday) {
+    const hours = date.getHours();
+    const displayHour = hours % 12 || 12;
+    const displayMinute = date.getMinutes().toString().padStart(2, '0');
+    const period = hours >= 12 ? 'pm' : 'am';
+    return `Today at ${displayHour}:${displayMinute}${period}`;
+  }
+  return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+};
 
 export const Dashboard = () => {
   const navigate = useNavigate();

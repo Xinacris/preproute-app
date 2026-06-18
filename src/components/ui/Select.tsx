@@ -31,9 +31,10 @@ export const Select = ({ options, value, onChange, placeholder = 'Choose from Dr
 
   const getLabel = () => {
     if (selectedValues.length === 0) return placeholder;
-    if (multiple && selectedValues.length > 1) return `${selectedValues.length} selected`;
-    const found = options.find((o) => o.value === selectedValues[0]);
-    return found?.label || placeholder;
+    const labels = selectedValues
+      .map((v) => options.find((o) => o.value === v)?.label)
+      .filter((l): l is string => !!l);
+    return labels.length > 0 ? labels.join(', ') : placeholder;
   };
 
   const handleSelect = (optVal: string) => {

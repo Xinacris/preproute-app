@@ -283,12 +283,11 @@ export const CreateTest = ({ editId, onClose, onSaved }: CreateTestProps = {}) =
           <Select
             label="Topic"
             options={topics.map((t) => ({ value: t.id, label: t.name }))}
-            value={field.value || []}
-            onChange={(v) => { field.onChange(v); setValue('sub_topics', []); }}
+            value={field.value?.[0] || ''}
+            onChange={(v) => { field.onChange(v ? [v as string] : []); setValue('sub_topics', []); }}
             placeholder="Choose from Drop-down"
             disabled={!selectedSubject}
             error={errors.topics?.message}
-            multiple
           />
         )} />
 
