@@ -8,6 +8,7 @@ import { login } from '../api/auth';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { useToast } from '../components/ui/Toast';
 import loginHero from '../assets/LoginHero.png';
 import prepRouteLogo from '../assets/PrepRoute.png';
 
@@ -21,6 +22,7 @@ type FormData = z.infer<typeof schema>;
 export const Login = () => {
   const navigate = useNavigate();
   const setAuth = useAuthStore((s) => s.setAuth);
+  const { showToast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,10 +35,13 @@ export const Login = () => {
       const res = await login(data.userId, data.password);
       const { token, user } = res.data.data;
       setAuth(token, user);
+      showToast('Login successful!');
       navigate('/dashboard', { replace: true });
     } catch (e: unknown) {
       const err = e as { response?: { data?: { message?: string } } };
-      setError(err.response?.data?.message || 'Invalid credentials. Please try again.');
+      const message = err.response?.data?.message || 'Invalid credentials. Please try again.';
+      setError(message);
+      showToast(message, 'error');
     }
   };
 
