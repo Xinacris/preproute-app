@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, Eye, MoreVertical } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, MoreVertical, Search } from 'lucide-react';
 import { getAllTests, deleteTest } from '../api/tests';
 import type { Test } from '../types';
 import { Button } from '../components/ui/Button';
@@ -9,6 +9,7 @@ import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { EditTestModal } from '../components/ui/EditTestModal';
 import { ViewTestModal } from '../components/ui/ViewTestModal';
+import { Select } from '../components/ui/Select';
 import { useToast } from '../components/ui/Toast';
 
 const TYPE_LABELS: Record<string, { label: string; className: string }> = {
@@ -16,6 +17,25 @@ const TYPE_LABELS: Record<string, { label: string; className: string }> = {
   pyq:         { label: 'PYQ',          className: 'bg-purple-100 text-purple-700' },
   mock:        { label: 'Mock Test',    className: 'bg-orange-100 text-orange-700' },
 };
+
+const TYPE_OPTIONS = [
+  { value: 'chapterwise', label: 'Chapter Wise' },
+  { value: 'pyq', label: 'PYQ' },
+  { value: 'mock', label: 'Mock Test' },
+];
+
+const DIFFICULTY_OPTIONS = [
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+];
+
+const SORT_OPTIONS = [
+  { value: 'name_asc', label: 'Name (A-Z)' },
+  { value: 'name_desc', label: 'Name (Z-A)' },
+  { value: 'date_desc', label: 'Date (Newest)' },
+  { value: 'date_asc', label: 'Date (Oldest)' },
+];
 
 const TypeBadge = ({ type }: { type?: string }) => {
   const t = type ? TYPE_LABELS[type] : null;
@@ -48,6 +68,12 @@ export const Dashboard = () => {
   const [editId, setEditId]       = useState<string | null>(null);
   const [viewId, setViewId] = useState<string | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [difficultyFilter, setDifficultyFilter] = useState('');
+  const [sortBy, setSortBy] = useState('');
 
   const { data, isLoading } = useQuery({
     queryKey: ['tests'],
@@ -66,6 +92,45 @@ export const Dashboard = () => {
 
   const tests: Test[] = data?.data || data || [];
 
+  const subjectOptions = useMemo(
+    () => [...new Set(tests.map((t) => t.subject).filter(Boolean))]
+      .sort()
+      .map((s) => ({ value: s, label: s })),
+    [tests]
+  );
+
+  const statusOptions = useMemo(
+    () => [...new Set(tests.map((t) => t.status).filter(Boolean))]
+      .map((s) => ({ value: s as string, label: (s as string).charAt(0).toUpperCase() + (s as string).slice(1) })),
+    [tests]
+  );
+
+  const hasActiveFilters = !!(search || typeFilter || subjectFilter || statusFilter || difficultyFilter || sortBy);
+
+  const clearFilters = () => {
+    setSearch('');
+    setTypeFilter('');
+    setSubjectFilter('');
+    setStatusFilter('');
+    setDifficultyFilter('');
+    setSortBy('');
+  };
+
+  const filteredTests = useMemo(() => {
+    let result = tests.filter((t) =>
+      (!search || t.name.toLowerCase().includes(search.toLowerCase())) &&
+      (!typeFilter || t.type === typeFilter) &&
+      (!subjectFilter || t.subject === subjectFilter) &&
+      (!statusFilter || t.status === statusFilter) &&
+      (!difficultyFilter || t.difficulty === difficultyFilter)
+    );
+    if (sortBy === 'name_asc')  result = [...result].sort((a, b) => a.name.localeCompare(b.name));
+    if (sortBy === 'name_desc') result = [...result].sort((a, b) => b.name.localeCompare(a.name));
+    if (sortBy === 'date_desc') result = [...result].sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
+    if (sortBy === 'date_asc')  result = [...result].sort((a, b) => new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime());
+    return result;
+  }, [tests, search, typeFilter, subjectFilter, statusFilter, difficultyFilter, sortBy]);
+
   return (
     <div className="flex flex-col gap-4 md:gap-6">
       {/* Header */}
@@ -76,6 +141,38 @@ export const Dashboard = () => {
           <span className="hidden sm:inline">Create New Test</span>
           <span className="sm:hidden">New</span>
         </Button>
+      </div>
+
+      {/* Filter toolbar */}
+      <div className="flex flex-wrap gap-2 items-start">
+        <div className="relative flex-1 min-w-[180px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-secondary pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by test name..."
+            className="w-full pl-9 pr-3 py-2.5 rounded-lg border text-sm border-border bg-white dark:bg-gray-800 dark:border-gray-600 dark:text-gray-100 dark:placeholder-gray-500 text-text-primary placeholder:text-text-secondary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+          />
+        </div>
+        <div className="w-full sm:w-40">
+          <Select options={TYPE_OPTIONS} value={typeFilter} onChange={(v) => setTypeFilter(v as string)} placeholder="All Types" />
+        </div>
+        <div className="w-full sm:w-44">
+          <Select options={subjectOptions} value={subjectFilter} onChange={(v) => setSubjectFilter(v as string)} placeholder="All Subjects" />
+        </div>
+        <div className="w-full sm:w-36">
+          <Select options={statusOptions} value={statusFilter} onChange={(v) => setStatusFilter(v as string)} placeholder="All Statuses" />
+        </div>
+        <div className="w-full sm:w-36">
+          <Select options={DIFFICULTY_OPTIONS} value={difficultyFilter} onChange={(v) => setDifficultyFilter(v as string)} placeholder="All Difficulties" />
+        </div>
+        <div className="w-full sm:w-44">
+          <Select options={SORT_OPTIONS} value={sortBy} onChange={(v) => setSortBy(v as string)} placeholder="Sort by" />
+        </div>
+        {hasActiveFilters && (
+          <Button variant="ghost" onClick={clearFilters}>Clear Filters</Button>
+        )}
       </div>
 
       {/* Desktop table */}
@@ -99,8 +196,10 @@ export const Dashboard = () => {
               ))
             ) : tests.length === 0 ? (
               <tr><td colSpan={8} className="py-16 text-center"><EmptyState onNavigate={() => navigate('/create-test')} /></td></tr>
+            ) : filteredTests.length === 0 ? (
+              <tr><td colSpan={8} className="py-16 text-center"><NoResultsState onClear={clearFilters} /></td></tr>
             ) : (
-              tests.map((test) => (
+              filteredTests.map((test) => (
                 <tr key={test.id} className="border-b border-border last:border-0 hover:bg-gray-50 dark:hover:bg-gray-700">
                   <td className="px-4 py-3 font-medium text-text-primary max-w-[180px] truncate">{test.name}</td>
                   <td className="px-4 py-3"><TypeBadge type={test.type} /></td>
@@ -145,8 +244,12 @@ export const Dashboard = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-border dark:border-gray-700 p-8">
             <EmptyState onNavigate={() => navigate('/create-test')} />
           </div>
+        ) : filteredTests.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-border dark:border-gray-700 p-8">
+            <NoResultsState onClear={clearFilters} />
+          </div>
         ) : (
-          tests.map((test) => (
+          filteredTests.map((test) => (
             <div key={test.id} className="bg-white dark:bg-gray-800 rounded-xl border border-border dark:border-gray-700 p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -215,5 +318,15 @@ const EmptyState = ({ onNavigate }: { onNavigate: () => void }) => (
     </div>
     <p className="font-medium text-sm">No tests found. Create your first test!</p>
     <Button size="sm" onClick={onNavigate}>Create New Test</Button>
+  </div>
+);
+
+const NoResultsState = ({ onClear }: { onClear: () => void }) => (
+  <div className="flex flex-col items-center gap-3 text-text-secondary">
+    <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+      <Search className="w-6 h-6 text-gray-400" />
+    </div>
+    <p className="font-medium text-sm">No tests match your filters.</p>
+    <Button size="sm" variant="ghost" onClick={onClear}>Clear Filters</Button>
   </div>
 );
