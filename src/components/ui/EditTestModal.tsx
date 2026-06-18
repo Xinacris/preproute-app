@@ -121,7 +121,7 @@ export const EditTestModal = ({ testId, onClose }: EditTestModalProps) => {
                         <span className="w-6 h-6 rounded-full bg-primary-light text-primary text-xs font-semibold flex items-center justify-center flex-shrink-0 mt-0.5">
                           {idx + 1}
                         </span>
-                        <span className="flex-1 text-sm text-text-primary leading-relaxed">{q.question}</span>
+                        <span className="flex-1 text-sm text-text-primary leading-relaxed" dangerouslySetInnerHTML={{ __html: q.question }} />
                         <div className="flex items-center gap-2 flex-shrink-0">
                           {q.difficulty && (
                             <Badge variant={q.difficulty === 'medium' ? 'medium' : q.difficulty === 'hard' ? 'hard' : 'easy'}>

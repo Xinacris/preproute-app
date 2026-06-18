@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Papa from 'papaparse';
+import ReactQuill from 'react-quill';
 import {
   ChevronRight, ChevronLeft, Trash2, Pencil,
   Clock, FileText, Star, AlertTriangle, List, X, Plus, Download,
@@ -29,6 +30,15 @@ const BLANK_QUESTION: Question = {
 };
 
 const OPTS = ['option1', 'option2', 'option3', 'option4'] as const;
+
+const quillModules = {
+  toolbar: [
+    ['bold', 'italic', 'underline'],
+    [{ list: 'ordered' }, { list: 'bullet' }],
+    ['link'],
+    ['clean'],
+  ],
+};
 
 // ─── QuestionManagerModal ────────────────────────────────────────────────────
 // Modal layout: test details at top, question list (left) + form (right) below.
@@ -297,16 +307,18 @@ const QuestionManagerModal = ({
                 )}
               </div>
 
-              {/* Question textarea */}
+              {/* Question rich text editor */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text-primary">Question</label>
-                <textarea
-                  value={form.question}
-                  onChange={(e) => setForm((f) => ({ ...f, question: e.target.value }))}
-                  placeholder="Type the question here..."
-                  rows={4}
-                  className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary resize-none"
-                />
+                <div className="quill-wrapper rounded-lg border border-border dark:border-gray-600 overflow-hidden bg-white dark:bg-gray-700">
+                  <ReactQuill
+                    theme="snow"
+                    value={form.question}
+                    onChange={(html) => setForm((f) => ({ ...f, question: html }))}
+                    placeholder="Type the question here..."
+                    modules={quillModules}
+                  />
+                </div>
               </div>
 
               {/* Options */}

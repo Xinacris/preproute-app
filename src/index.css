@@ -40,3 +40,10 @@ input[type=number] { -moz-appearance: textfield; }
 .scrollbar-thin::-webkit-scrollbar { width: 4px; }
 .scrollbar-thin::-webkit-scrollbar-track { background: #f1f1f1; }
 .scrollbar-thin::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+
+.quill-wrapper .ql-toolbar.ql-snow { border: none; border-bottom: 1px solid var(--color-border); background: transparent; }
+.quill-wrapper .ql-container.ql-snow { border: none; font-family: inherit; font-size: 0.875rem; }
+.quill-wrapper .ql-editor { min-height: 110px; }
+html.dark .quill-wrapper .ql-snow .ql-stroke { stroke: #9CA3AF; }
+html.dark .quill-wrapper .ql-snow .ql-picker { color: #9CA3AF; }
+html.dark .quill-wrapper .ql-editor.ql-blank::before { color: #6B7280; }
