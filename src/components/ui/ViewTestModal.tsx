@@ -7,6 +7,7 @@ import { Spinner } from './Spinner';
 import { Badge } from './Badge';
 import { Button } from './Button';
 import type { Test, Question } from '../../types';
+import { sanitizeHtml } from '../../utils/sanitizeHtml';
 
 const OPTION_KEYS = ['option1', 'option2', 'option3', 'option4'] as const;
 
@@ -94,7 +95,7 @@ export const ViewTestModal = ({ testId, onClose }: ViewTestModalProps) => {
                         <div key={qId} className="px-4 py-3">
                           <button onClick={() => setExpandedQ(isOpen ? null : qId)} className="w-full flex items-start gap-3 text-left">
                             <span className="w-6 h-6 rounded-full bg-primary-light text-primary text-xs font-semibold flex items-center justify-center flex-shrink-0 mt-0.5">{idx + 1}</span>
-                            <span className="flex-1 text-sm text-text-primary leading-relaxed" dangerouslySetInnerHTML={{ __html: q.question }} />
+                            <span className="flex-1 text-sm text-text-primary leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(q.question) }} />
                             {isOpen ? <ChevronUp className="w-4 h-4 text-text-secondary flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-text-secondary flex-shrink-0" />}
                           </button>
                           {isOpen && (
