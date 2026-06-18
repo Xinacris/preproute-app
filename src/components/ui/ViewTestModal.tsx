@@ -100,6 +100,9 @@ export const ViewTestModal = ({ testId, onClose }: ViewTestModalProps) => {
                           </button>
                           {isOpen && (
                             <div className="mt-3 ml-9 flex flex-col gap-2">
+                              {q.media_url?.trim() && (
+                                <img src={q.media_url} alt="" className="max-h-48 rounded-lg" />
+                              )}
                               {OPTION_KEYS.filter((key) => !!q[key]?.trim()).map((key, i) => {
                                 const isCorrect = q.correct_option === key;
                                 return (

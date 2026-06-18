@@ -5,7 +5,7 @@ import Papa from 'papaparse';
 import ReactQuill from 'react-quill-new';
 import {
   ChevronRight, ChevronLeft, Trash2, Pencil,
-  Clock, FileText, Star, AlertTriangle, List, X, Plus, Download,
+  Clock, FileText, Star, AlertTriangle, List, X, Plus, Download, Upload,
 } from 'lucide-react';
 import { getTestById, updateTest } from '../api/tests';
 import { bulkCreateQuestions, fetchBulkQuestions, updateQuestionById } from '../api/questions';
@@ -64,6 +64,21 @@ const QuestionManagerModal = ({
   const [isEditing, setIsEditing] = useState(false);
   const [deletedOptions, setDeletedOptions] = useState<Set<string>>(new Set());
   const [fieldErrors, setFieldErrors] = useState<{ question?: string; options?: string }>({});
+  const mediaFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleMediaFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('Please choose an image file', 'error');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setForm((f) => ({ ...f, media_url: reader.result as string }));
+    reader.onerror = () => showToast('Failed to read image file', 'error');
+    reader.readAsDataURL(file);
+  };
 
   const markDeleted = (opt: string) =>
     setDeletedOptions((prev) => new Set([...prev, opt]));
@@ -428,13 +443,26 @@ const QuestionManagerModal = ({
               {/* Media URL */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-text-primary">Media URL</label>
-                <input
-                  type="text"
-                  value={form.media_url || ''}
-                  onChange={(e) => setForm((f) => ({ ...f, media_url: e.target.value }))}
-                  placeholder="https://example.com/image.png"
-                  className="w-full px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={form.media_url || ''}
+                    onChange={(e) => setForm((f) => ({ ...f, media_url: e.target.value }))}
+                    placeholder="https://example.com/image.png"
+                    className="flex-1 px-3 py-2.5 rounded-lg border border-border dark:border-gray-600 bg-white dark:bg-gray-700 text-sm text-text-primary dark:text-gray-100 placeholder:text-text-secondary dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                  />
+                  <Button type="button" variant="secondary" onClick={() => mediaFileInputRef.current?.click()}>
+                    <Upload className="w-4 h-4" />
+                    Upload
+                  </Button>
+                  <input
+                    ref={mediaFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleMediaFile}
+                    className="hidden"
+                  />
+                </div>
                 {form.media_url?.trim() && (
                   <img src={form.media_url} alt="" className="max-h-40 rounded-lg mt-2" />
                 )}
